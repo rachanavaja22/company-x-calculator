@@ -160,8 +160,11 @@
   function render() {
     valueEl.textContent = current;
     exprEl.textContent = operator !== null ? `${format(stored)} ${SYMBOLS[operator]}` : "";
-    document.querySelectorAll("[data-op]").forEach(b =>
-      b.classList.toggle("active", b.dataset.op === operator && fresh));
+    document.querySelectorAll("[data-op]").forEach(b => {
+      const pending = b.dataset.op === operator && fresh;
+      b.classList.toggle("active", pending);
+      b.setAttribute("aria-pressed", String(pending));
+    });
   }
 
   function inputDigit(d) {
