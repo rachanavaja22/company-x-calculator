@@ -165,6 +165,8 @@
   const TOO_LARGE = "Too large";
   const SPOKEN_ERRORS = { [DIV_ZERO]: "Cannot divide by zero", [TOO_LARGE]: "Number too large" };
   const isError = s => s in SPOKEN_ERRORS;
+  // Spell out the sign so "-12" is read as "minus 12" rather than "dash 12"
+  const spokenValue = s => s.startsWith("-") ? `minus ${s.slice(1)}` : s;
 
   function format(n) {
     if (Number.isNaN(n)) return DIV_ZERO;   // compute() returns NaN only for ÷ 0
@@ -235,11 +237,13 @@
     if (fresh || isError(current)) return;
     current = current.length > 1 && current !== "-0" ? current.slice(0, -1) : "0";
     if (current === "-") current = "0";
+    announcement = spokenValue(current);
   }
 
   function toggleSign() {
     if (isError(current) || current === "0") return;
     current = current.startsWith("-") ? current.slice(1) : "-" + current;
+    announcement = spokenValue(current);
   }
 
   document.querySelector(".keys").addEventListener("click", e => {
