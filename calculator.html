@@ -112,6 +112,9 @@
   .op.active { outline: 2px solid var(--text); outline-offset: -4px; }
   .eq { background: var(--eq); color: var(--eq-text); }
   .eq:hover { background: var(--eq-hover); }
+  /* Math glyphs sit low and small next to digits: enlarge and lift them optically */
+  .op, .eq { font-size: 26px; padding-bottom: 6px; }
+  [data-action="sign"] { padding-bottom: 3px; }
   .zero { grid-column: span 2; }
   .sr-only {
     position: absolute; width: 1px; height: 1px; overflow: hidden;
