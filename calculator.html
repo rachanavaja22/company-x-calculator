@@ -14,6 +14,7 @@
     --key-hover: #e0e3e8;
     --op: #2563eb;
     --op-hover: #1d4ed8;
+    --focus: #2563eb;
     --op-text: #ffffff;
     --fn: #d9dce2;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -28,6 +29,7 @@
       --key-hover: #353941;
       --op: #2563eb;
       --op-hover: #1d4ed8;
+      --focus: #8ab4ff;
       --op-text: #ffffff;
       --fn: #3a3e46;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -90,7 +92,7 @@
   }
   button:hover { background: var(--key-hover); }
   button:active { transform: scale(0.96); }
-  button:focus-visible { outline: 2px solid var(--op); outline-offset: 2px; }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .fn { background: var(--fn); font-size: 18px; }
   .op { background: var(--op); color: var(--op-text); }
   .op:hover { background: var(--op-hover); }
