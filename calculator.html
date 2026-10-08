@@ -13,6 +13,7 @@
     --key: #eceef1;
     --key-hover: #e0e3e8;
     --op: #2563eb;
+    --op-hover: #1d4ed8;
     --op-text: #ffffff;
     --fn: #d9dce2;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -26,6 +27,7 @@
       --key: #2a2d33;
       --key-hover: #353941;
       --op: #2563eb;
+      --op-hover: #1d4ed8;
       --op-text: #ffffff;
       --fn: #3a3e46;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -91,7 +93,7 @@
   button:focus-visible { outline: 2px solid var(--op); outline-offset: 2px; }
   .fn { background: var(--fn); font-size: 18px; }
   .op { background: var(--op); color: var(--op-text); }
-  .op:hover { filter: brightness(1.1); background: var(--op); }
+  .op:hover { background: var(--op-hover); }
   .op.active { outline: 2px solid var(--text); outline-offset: -4px; }
   .zero { grid-column: span 2; }
 </style>
