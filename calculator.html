@@ -65,6 +65,7 @@
     color: var(--muted);
     min-height: 20px;
     white-space: nowrap;
+    overflow: hidden;
   }
   .value {
     font-size: 44px;
@@ -145,10 +146,11 @@
   const exprEl = document.getElementById("expr");
   const srEl = document.getElementById("sr");
 
-  let current = "0";      // number being typed (string)
-  let stored = null;      // left operand (number)
+  let current = "0";      // number being typed, or the last result (string)
+  let typing = false;     // the user has started typing the current number
+  let stored = null;      // running value of the chain before the current number
   let operator = null;    // pending operator
-  let fresh = false;      // next digit starts a new number
+  let chain = "";         // expression text before the pending operator, e.g. "7 + 2"
   let announcement = "";  // text for the screen-reader status region
 
   function compute(a, b, op) {
@@ -167,6 +169,8 @@
   const isError = s => s in SPOKEN_ERRORS;
   // Spell out the sign so "-12" is read as "minus 12" rather than "dash 12"
   const spokenValue = s => s.startsWith("-") ? `minus ${s.slice(1)}` : s;
+  // Typographic minus for negative numbers in the expression line
+  const shown = s => s.replace(/^-/, "−");
 
   function format(n) {
     if (Number.isNaN(n)) return DIV_ZERO;   // compute() returns NaN only for ÷ 0
@@ -179,9 +183,11 @@
   function render() {
     valueEl.textContent = current;
     if (announcement) { srEl.textContent = announcement; announcement = ""; }
-    exprEl.textContent = operator !== null ? `${format(stored)} ${SYMBOLS[operator]}` : "";
+    const entry = typing ? shown(current) : "";
+    exprEl.textContent = [operator !== null ? `${chain} ${SYMBOLS[operator]}` : "", entry].filter(Boolean).join(" ");
+    exprEl.scrollLeft = exprEl.scrollWidth;   // keep the latest input in view
     document.querySelectorAll("[data-op]").forEach(b => {
-      const pending = b.dataset.op === operator && fresh;
+      const pending = b.dataset.op === operator && !typing;
       b.classList.toggle("active", pending);
       b.setAttribute("aria-pressed", String(pending));
     });
@@ -189,30 +195,34 @@
 
   function inputDigit(d) {
     if (isError(current)) clear();
-    if (fresh) { current = d; fresh = false; }
+    if (!typing) { current = d; typing = true; }
     else current = current === "0" ? d : current + d;
     if (current.replace(/[-.]/g, "").length > 15) current = current.slice(0, -1);
   }
 
   function inputDot() {
     if (isError(current)) clear();
-    if (fresh) { current = "0."; fresh = false; return; }
+    if (!typing) { current = "0."; typing = true; return; }
     if (!current.includes(".")) current += ".";
   }
 
   function setOperator(op) {
     if (isError(current)) return;
-    const n = parseFloat(current);
-    if (operator !== null && !fresh) {
-      const result = compute(stored, n, operator);
-      current = format(result);
-      if (isError(current)) { stored = null; operator = null; fresh = true; announcement = SPOKEN_ERRORS[current]; return; }
+    if (operator === null) {            // start a chain from the current number (or last result)
+      chain = shown(current);
       stored = parseFloat(current);
-    } else if (operator === null || !fresh) {
-      stored = n;
-    }
+    } else if (typing) {                // fold the number just typed into the chain
+      const result = compute(stored, parseFloat(current), operator);
+      if (!isFinite(result)) {
+        current = format(result); stored = null; operator = null; typing = false; chain = "";
+        announcement = SPOKEN_ERRORS[current];
+        return;
+      }
+      chain += ` ${SYMBOLS[operator]} ${shown(current)}`;
+      stored = result;
+    }                                   // otherwise just swap the pending operator
     operator = op;
-    fresh = true;
+    typing = false;
     announcement = `${format(stored)} ${WORDS[op]}`;
   }
 
@@ -220,21 +230,21 @@
     if (operator === null || isError(current)) return;
     const result = compute(stored, parseFloat(current), operator);
     const spoken = `${format(stored)} ${WORDS[operator]} ${current}`;
-    exprEl.textContent = "";
     current = format(result);
     announcement = isError(current) ? SPOKEN_ERRORS[current] : `${spoken} equals ${current}`;
     stored = null;
     operator = null;
-    fresh = true;
+    typing = false;
+    chain = "";
   }
 
   function clear() {
-    current = "0"; stored = null; operator = null; fresh = false;
+    current = "0"; typing = false; stored = null; operator = null; chain = "";
     announcement = "Cleared";
   }
 
   function backspace() {
-    if (fresh || isError(current)) return;
+    if (!typing || isError(current)) return;
     current = current.length > 1 && current !== "-0" ? current.slice(0, -1) : "0";
     if (current === "-") current = "0";
     announcement = spokenValue(current);
