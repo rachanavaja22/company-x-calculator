@@ -10,6 +10,7 @@
     --panel: #ffffff;
     --text: #1d1f23;
     --muted: #6b7079;
+    --text-preview: var(--muted);
     --key: #eceef1;
     --key-hover: #e0e3e8;
     --op: #2563eb;
@@ -25,6 +26,7 @@
       --panel: #1c1e22;
       --text: #f1f2f4;
       --muted: #9097a2;
+      --text-preview: var(--muted);
       --key: #2a2d33;
       --key-hover: #353941;
       --op: #2563eb;
@@ -75,6 +77,7 @@
     text-overflow: ellipsis;
     font-variant-numeric: tabular-nums;
   }
+  .value.preview { color: var(--text-preview); }
   .keys {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -152,6 +155,7 @@
   let operator = null;    // pending operator
   let chain = "";         // expression text before the pending operator, e.g. "7 + 2"
   let hasLowOp = false;   // chain has a + or − outside brackets, so × ÷ must bracket it
+  let chainError = null;  // first error hit while chaining (e.g. ÷ 0), only shown on "="
   let announcement = "";  // text for the screen-reader status region
 
   function compute(a, b, op) {
@@ -181,8 +185,17 @@
     return Math.abs(r) >= 1e12 ? r.toExponential(6) : String(r);
   }
 
+  // Running value of everything entered so far, or null when there is nothing to preview
+  function preview() {
+    if (operator === null) return typing ? parseFloat(current) : null;
+    return typing ? compute(stored, parseFloat(current), operator) : stored;
+  }
+
   function render() {
-    valueEl.textContent = current;
+    const p = preview();
+    valueEl.classList.toggle("preview", p !== null);
+    // An invalid chain (e.g. ÷ 0) previews as blank; the error itself appears on "="
+    valueEl.textContent = p === null ? current : isFinite(p) ? format(p) : "\u00a0";
     if (announcement) { srEl.textContent = announcement; announcement = ""; }
     const entry = typing ? shown(current) : "";
     exprEl.textContent = [operator !== null ? `${chain} ${SYMBOLS[operator]}` : "", entry].filter(Boolean).join(" ");
@@ -213,16 +226,12 @@
       chain = shown(current);
       stored = parseFloat(current);
       hasLowOp = false;
+      chainError = null;
     } else if (typing) {                // fold the number just typed into the chain
-      const result = compute(stored, parseFloat(current), operator);
-      if (!isFinite(result)) {
-        current = format(result); stored = null; operator = null; typing = false; chain = "";
-        announcement = SPOKEN_ERRORS[current];
-        return;
-      }
       chain += ` ${SYMBOLS[operator]} ${shown(current)}`;
       if (operator === "+" || operator === "-") hasLowOp = true;
-      stored = result;
+      stored = compute(stored, parseFloat(current), operator);
+      if (!isFinite(stored) && chainError === null) chainError = format(stored);
     }                                   // otherwise just swap the pending operator
     // Left-to-right evaluation: show it by bracketing the + / − part before × ÷
     if ((op === "*" || op === "/") && hasLowOp) {
@@ -231,24 +240,25 @@
     }
     operator = op;
     typing = false;
-    announcement = `${format(stored)} ${WORDS[op]}`;
+    announcement = isFinite(stored) ? `${format(stored)} ${WORDS[op]}` : WORDS[op];
   }
 
   function equals() {
     if (operator === null || isError(current)) return;
     const result = compute(stored, parseFloat(current), operator);
     const spoken = `${format(stored)} ${WORDS[operator]} ${current}`;
-    current = format(result);
+    current = chainError ?? format(result);
     announcement = isError(current) ? SPOKEN_ERRORS[current] : `${spoken} equals ${current}`;
     stored = null;
     operator = null;
     typing = false;
     chain = "";
     hasLowOp = false;
+    chainError = null;
   }
 
   function clear() {
-    current = "0"; typing = false; stored = null; operator = null; chain = ""; hasLowOp = false;
+    current = "0"; typing = false; stored = null; operator = null; chain = ""; hasLowOp = false; chainError = null;
     announcement = "Cleared";
   }
 
