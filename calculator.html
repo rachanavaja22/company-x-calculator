@@ -21,6 +21,7 @@
     --eq-text: #ffffff;
     --focus: #2563eb;
     --fn: #d9dce2;
+    --fn-hover: #cdd1d8;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   }
   @media (prefers-color-scheme: dark) {
@@ -40,6 +41,7 @@
       --eq-text: #ffffff;
       --focus: #8ab4ff;
       --fn: #3a3e46;
+      --fn-hover: #454a53;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
   }
@@ -104,6 +106,7 @@
   button:active { transform: scale(0.96); }
   button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .fn { background: var(--fn); font-size: 18px; }
+  .fn:hover { background: var(--fn-hover); }
   .op { background: var(--op); color: var(--op-text); }
   .op:hover { background: var(--op-hover); }
   .op.active { outline: 2px solid var(--text); outline-offset: -4px; }
