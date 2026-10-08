@@ -176,7 +176,7 @@
 
   function render() {
     valueEl.textContent = current;
-    srEl.textContent = announcement;
+    if (announcement) { srEl.textContent = announcement; announcement = ""; }
     exprEl.textContent = operator !== null ? `${format(stored)} ${SYMBOLS[operator]}` : "";
     document.querySelectorAll("[data-op]").forEach(b => {
       const pending = b.dataset.op === operator && fresh;
@@ -190,14 +190,12 @@
     if (fresh) { current = d; fresh = false; }
     else current = current === "0" ? d : current + d;
     if (current.replace(/[-.]/g, "").length > 15) current = current.slice(0, -1);
-    announcement = current;
   }
 
   function inputDot() {
     if (isError(current)) clear();
-    if (fresh) { current = "0."; fresh = false; announcement = current; return; }
+    if (fresh) { current = "0."; fresh = false; return; }
     if (!current.includes(".")) current += ".";
-    announcement = current;
   }
 
   function setOperator(op) {
@@ -237,13 +235,11 @@
     if (fresh || isError(current)) return;
     current = current.length > 1 && current !== "-0" ? current.slice(0, -1) : "0";
     if (current === "-") current = "0";
-    announcement = current;
   }
 
   function toggleSign() {
     if (isError(current) || current === "0") return;
     current = current.startsWith("-") ? current.slice(1) : "-" + current;
-    announcement = current;
   }
 
   document.querySelector(".keys").addEventListener("click", e => {
