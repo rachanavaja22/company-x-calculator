@@ -154,6 +154,7 @@
   let stored = null;      // running value of the chain before the current number
   let operator = null;    // pending operator
   let chain = "";         // expression text before the pending operator, e.g. "7 + 2"
+  let spokenChain = "";   // the same chain in words for the status region, e.g. "2 plus 3,"
   let hasLowOp = false;   // chain has a + or − outside brackets, so × ÷ must bracket it
   let chainError = null;  // first error hit while chaining (e.g. ÷ 0), only shown on "="
   let evaluated = null;   // finished expression shown after "=", e.g. "(2 + 3) × 4 ="
@@ -228,11 +229,13 @@
     if (isError(current)) return;
     if (operator === null) {            // start a chain from the current number (or last result)
       chain = shown(current);
+      spokenChain = spokenValue(current);
       stored = parseFloat(current);
       hasLowOp = false;
       chainError = null;
     } else if (typing) {                // fold the number just typed into the chain
       chain += ` ${SYMBOLS[operator]} ${shown(current)}`;
+      spokenChain += ` ${WORDS[operator]} ${spokenValue(current)}`;
       if (operator === "+" || operator === "-") hasLowOp = true;
       stored = compute(stored, parseFloat(current), operator);
       if (!isFinite(stored) && chainError === null) chainError = format(stored);
@@ -240,6 +243,7 @@
     // Left-to-right evaluation: show it by bracketing the + / − part before × ÷
     if ((op === "*" || op === "/") && hasLowOp) {
       chain = `(${chain})`;
+      spokenChain += ",";   // a pause stands in for the bracket when read aloud
       hasLowOp = false;
     }
     operator = op;
@@ -252,20 +256,22 @@
     if (operator === null || !typing) return;   // nothing to finish yet
     const result = compute(stored, parseFloat(current), operator);
     evaluated = `${chain} ${SYMBOLS[operator]} ${shown(current)} =`;
-    const spoken = `${format(stored)} ${WORDS[operator]} ${current}`;
+    // Announce the whole calculation once, on "=" (preview updates stay silent)
+    const spoken = `${spokenChain} ${WORDS[operator]} ${spokenValue(current)}`;
     current = chainError ?? format(result);
-    announcement = isError(current) ? SPOKEN_ERRORS[current] : `${spoken} equals ${current}`;
+    announcement = isError(current) ? SPOKEN_ERRORS[current] : `${spoken} equals ${spokenValue(current)}`;
     stored = null;
     operator = null;
     typing = false;
     chain = "";
+    spokenChain = "";
     hasLowOp = false;
     chainError = null;
   }
 
   function reset() {
     current = "0"; typing = false; stored = null; operator = null;
-    chain = ""; hasLowOp = false; chainError = null; evaluated = null;
+    chain = ""; spokenChain = ""; hasLowOp = false; chainError = null; evaluated = null;
   }
 
   function clear() {
