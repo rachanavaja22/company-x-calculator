@@ -209,11 +209,21 @@
     return typing ? compute(stored, parseFloat(current), operator) : stored;
   }
 
+  // Shrink the big line from 44px (down to 24px) until its text fits instead of cutting it off
+  function fitValue() {
+    let size = 44;
+    valueEl.style.fontSize = "";
+    while (valueEl.scrollWidth > valueEl.clientWidth && size > 24) {
+      valueEl.style.fontSize = (size -= 2) + "px";
+    }
+  }
+
   function render() {
     const p = preview();
     valueEl.classList.toggle("preview", p !== null);
     // An invalid chain (e.g. ÷ 0) previews as blank; the error itself appears on "="
     valueEl.textContent = p === null ? current : isFinite(p) ? format(p) : "\u00a0";
+    fitValue();
     if (announcement) { srEl.textContent = announcement; announcement = ""; }
     const entry = typing ? shown(current) : "";
     exprEl.textContent = evaluated ??
