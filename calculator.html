@@ -13,10 +13,13 @@
     --text-preview: var(--muted);
     --key: #eceef1;
     --key-hover: #e0e3e8;
-    --op: #2563eb;
-    --op-hover: #1d4ed8;
+    --op: #dbe6fd;
+    --op-hover: #cbdafc;
+    --op-text: #1d4ed8;
+    --eq: #2563eb;
+    --eq-hover: #1d4ed8;
+    --eq-text: #ffffff;
     --focus: #2563eb;
-    --op-text: #ffffff;
     --fn: #d9dce2;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   }
@@ -29,10 +32,13 @@
       --text-preview: var(--muted);
       --key: #2a2d33;
       --key-hover: #353941;
-      --op: #2563eb;
-      --op-hover: #1d4ed8;
+      --op: #1f2a44;
+      --op-hover: #283656;
+      --op-text: #93b4ff;
+      --eq: #2563eb;
+      --eq-hover: #1d4ed8;
+      --eq-text: #ffffff;
       --focus: #8ab4ff;
-      --op-text: #ffffff;
       --fn: #3a3e46;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     }
@@ -101,6 +107,8 @@
   .op { background: var(--op); color: var(--op-text); }
   .op:hover { background: var(--op-hover); }
   .op.active { outline: 2px solid var(--text); outline-offset: -4px; }
+  .eq { background: var(--eq); color: var(--eq-text); }
+  .eq:hover { background: var(--eq-hover); }
   .zero { grid-column: span 2; }
   .sr-only {
     position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -138,7 +146,7 @@
 
       <button class="zero" data-digit="0">0</button>
       <button data-action="dot" aria-label="Decimal point">.</button>
-      <button class="op" data-action="equals" aria-label="Equals">=</button>
+      <button class="eq" data-action="equals" aria-label="Equals">=</button>
     </div>
   </main>
 
