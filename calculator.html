@@ -148,6 +148,7 @@
   const valueEl = document.getElementById("value");
   const exprEl = document.getElementById("expr");
   const srEl = document.getElementById("sr");
+  const clearBtn = document.querySelector('[data-action="clear"]');
 
   let current = "0";      // number being typed, or the last result (string)
   let typing = false;     // the user has started typing the current number
@@ -158,6 +159,7 @@
   let hasLowOp = false;   // chain has a + or − outside brackets, so × ÷ must bracket it
   let chainError = null;  // first error hit while chaining (e.g. ÷ 0), only shown on "="
   let evaluated = null;   // finished expression shown after "=", e.g. "(2 + 3) × 4 ="
+  let entryDirty = false; // there is an entry for C to clear; otherwise the key is AC
   let announcement = "";  // text for the screen-reader status region
 
   function compute(a, b, op) {
@@ -203,6 +205,8 @@
     exprEl.textContent = evaluated ??
       [operator !== null ? `${chain} ${SYMBOLS[operator]}` : "", entry].filter(Boolean).join(" ");
     exprEl.scrollLeft = exprEl.scrollWidth;   // keep the latest input in view
+    clearBtn.textContent = entryDirty ? "C" : "AC";
+    clearBtn.setAttribute("aria-label", entryDirty ? "C, clear entry" : "AC, all clear");
     document.querySelectorAll("[data-op]").forEach(b => {
       const pending = b.dataset.op === operator && !typing;
       b.classList.toggle("active", pending);
@@ -216,13 +220,16 @@
     if (!typing) { current = d; typing = true; }
     else current = current === "0" ? d : current + d;
     if (current.replace(/[-.]/g, "").length > 15) current = current.slice(0, -1);
+    entryDirty = true;
   }
 
   function inputDot() {
     if (isError(current)) clear();
     else if (evaluated !== null) reset();
-    if (!typing) { current = "0."; typing = true; return; }
-    if (!current.includes(".")) current += ".";
+    if (!typing) current = "0.";
+    else if (!current.includes(".")) current += ".";
+    typing = true;
+    entryDirty = true;
   }
 
   function setOperator(op) {
@@ -248,6 +255,7 @@
     }
     operator = op;
     typing = false;
+    entryDirty = true;
     evaluated = null;   // an operator after "=" continues from the result
     announcement = isFinite(stored) ? `${format(stored)} ${WORDS[op]}` : WORDS[op];
   }
@@ -267,17 +275,29 @@
     spokenChain = "";
     hasLowOp = false;
     chainError = null;
+    entryDirty = false;
   }
 
   function reset() {
     current = "0"; typing = false; stored = null; operator = null;
     chain = ""; spokenChain = ""; hasLowOp = false; chainError = null; evaluated = null;
+    entryDirty = false;
   }
 
   function clear() {
     reset();
     announcement = "Cleared";
   }
+
+  // C: clear only the number being entered, keeping the chain and pending operator
+  function clearEntry() {
+    current = "0";
+    typing = false;
+    entryDirty = false;
+    announcement = "Entry cleared";
+  }
+
+  const clearKey = () => entryDirty ? clearEntry() : clear();
 
   function backspace() {
     if (!typing || isError(current)) return;
@@ -291,6 +311,7 @@
     if (operator !== null && !typing) return;   // no number entered after the operator yet
     current = current.startsWith("-") ? current.slice(1) : "-" + current;
     evaluated = null;   // a negated result no longer matches the finished expression
+    entryDirty = true;
     announcement = spokenValue(current);
   }
 
@@ -299,7 +320,7 @@
     if (!b) return;
     if (b.dataset.digit) inputDigit(b.dataset.digit);
     else if (b.dataset.op) setOperator(b.dataset.op);
-    else ({ clear, sign: toggleSign, back: backspace, dot: inputDot, equals })[b.dataset.action]();
+    else ({ clear: clearKey, sign: toggleSign, back: backspace, dot: inputDot, equals })[b.dataset.action]();
     render();
   });
 
