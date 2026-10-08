@@ -12,7 +12,9 @@
     --muted: #6b7079;
     --key: #eceef1;
     --key-hover: #e0e3e8;
-    --op: #2f6fed;
+    --op: #2563eb;
+    --op-hover: #1d4ed8;
+    --focus: #2563eb;
     --op-text: #ffffff;
     --fn: #d9dce2;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
@@ -25,7 +27,9 @@
       --muted: #9097a2;
       --key: #2a2d33;
       --key-hover: #353941;
-      --op: #4a82f5;
+      --op: #2563eb;
+      --op-hover: #1d4ed8;
+      --focus: #8ab4ff;
       --op-text: #ffffff;
       --fn: #3a3e46;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
@@ -88,23 +92,28 @@
   }
   button:hover { background: var(--key-hover); }
   button:active { transform: scale(0.96); }
-  button:focus-visible { outline: 2px solid var(--op); outline-offset: 2px; }
+  button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .fn { background: var(--fn); font-size: 18px; }
   .op { background: var(--op); color: var(--op-text); }
-  .op:hover { filter: brightness(1.1); background: var(--op); }
+  .op:hover { background: var(--op-hover); }
   .op.active { outline: 2px solid var(--text); outline-offset: -4px; }
   .zero { grid-column: span 2; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
 </style>
 </head>
 <body>
   <main class="calc" aria-label="Calculator">
     <div class="display">
       <div class="expr" id="expr"></div>
-      <div class="value" id="value" aria-live="polite">0</div>
+      <div class="value" id="value">0</div>
     </div>
+    <div class="sr-only" id="sr" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="keys">
-      <button class="fn" data-action="clear">AC</button>
-      <button class="fn" data-action="sign">±</button>
+      <button class="fn" data-action="clear" aria-label="AC, all clear">AC</button>
+      <button class="fn" data-action="sign" aria-label="Change sign">±</button>
       <button class="fn" data-action="back" aria-label="Backspace">⌫</button>
       <button class="op" data-op="/" aria-label="Divide">÷</button>
 
@@ -124,20 +133,23 @@
       <button class="op" data-op="+" aria-label="Add">+</button>
 
       <button class="zero" data-digit="0">0</button>
-      <button data-action="dot">.</button>
+      <button data-action="dot" aria-label="Decimal point">.</button>
       <button class="op" data-action="equals" aria-label="Equals">=</button>
     </div>
   </main>
 
 <script>
   const SYMBOLS = { "+": "+", "-": "−", "*": "×", "/": "÷" };
+  const WORDS = { "+": "plus", "-": "minus", "*": "times", "/": "divided by" };
   const valueEl = document.getElementById("value");
   const exprEl = document.getElementById("expr");
+  const srEl = document.getElementById("sr");
 
   let current = "0";      // number being typed (string)
   let stored = null;      // left operand (number)
   let operator = null;    // pending operator
   let fresh = false;      // next digit starts a new number
+  let announcement = "";  // text for the screen-reader status region
 
   function compute(a, b, op) {
     switch (op) {
@@ -148,8 +160,17 @@
     }
   }
 
+  // Short enough to fit the 44px display; screen readers get the full wording
+  const DIV_ZERO = "Can't ÷ by 0";
+  const TOO_LARGE = "Too large";
+  const SPOKEN_ERRORS = { [DIV_ZERO]: "Cannot divide by zero", [TOO_LARGE]: "Number too large" };
+  const isError = s => s in SPOKEN_ERRORS;
+  // Spell out the sign so "-12" is read as "minus 12" rather than "dash 12"
+  const spokenValue = s => s.startsWith("-") ? `minus ${s.slice(1)}` : s;
+
   function format(n) {
-    if (!isFinite(n)) return "Error";
+    if (Number.isNaN(n)) return DIV_ZERO;   // compute() returns NaN only for ÷ 0
+    if (!isFinite(n)) return TOO_LARGE;
     // Trim floating-point noise like 0.1 + 0.2 = 0.30000000000000004
     const r = parseFloat(n.toPrecision(12));
     return Math.abs(r) >= 1e12 ? r.toExponential(6) : String(r);
@@ -157,44 +178,51 @@
 
   function render() {
     valueEl.textContent = current;
+    if (announcement) { srEl.textContent = announcement; announcement = ""; }
     exprEl.textContent = operator !== null ? `${format(stored)} ${SYMBOLS[operator]}` : "";
-    document.querySelectorAll("[data-op]").forEach(b =>
-      b.classList.toggle("active", b.dataset.op === operator && fresh));
+    document.querySelectorAll("[data-op]").forEach(b => {
+      const pending = b.dataset.op === operator && fresh;
+      b.classList.toggle("active", pending);
+      b.setAttribute("aria-pressed", String(pending));
+    });
   }
 
   function inputDigit(d) {
-    if (current === "Error") clear();
+    if (isError(current)) clear();
     if (fresh) { current = d; fresh = false; }
     else current = current === "0" ? d : current + d;
     if (current.replace(/[-.]/g, "").length > 15) current = current.slice(0, -1);
   }
 
   function inputDot() {
-    if (current === "Error") clear();
+    if (isError(current)) clear();
     if (fresh) { current = "0."; fresh = false; return; }
     if (!current.includes(".")) current += ".";
   }
 
   function setOperator(op) {
-    if (current === "Error") return;
+    if (isError(current)) return;
     const n = parseFloat(current);
     if (operator !== null && !fresh) {
       const result = compute(stored, n, operator);
       current = format(result);
-      if (current === "Error") { stored = null; operator = null; fresh = true; return; }
+      if (isError(current)) { stored = null; operator = null; fresh = true; announcement = SPOKEN_ERRORS[current]; return; }
       stored = parseFloat(current);
     } else if (operator === null || !fresh) {
       stored = n;
     }
     operator = op;
     fresh = true;
+    announcement = `${format(stored)} ${WORDS[op]}`;
   }
 
   function equals() {
-    if (operator === null || current === "Error") return;
+    if (operator === null || isError(current)) return;
     const result = compute(stored, parseFloat(current), operator);
+    const spoken = `${format(stored)} ${WORDS[operator]} ${current}`;
     exprEl.textContent = "";
     current = format(result);
+    announcement = isError(current) ? SPOKEN_ERRORS[current] : `${spoken} equals ${current}`;
     stored = null;
     operator = null;
     fresh = true;
@@ -202,17 +230,20 @@
 
   function clear() {
     current = "0"; stored = null; operator = null; fresh = false;
+    announcement = "Cleared";
   }
 
   function backspace() {
-    if (fresh || current === "Error") return;
+    if (fresh || isError(current)) return;
     current = current.length > 1 && current !== "-0" ? current.slice(0, -1) : "0";
     if (current === "-") current = "0";
+    announcement = spokenValue(current);
   }
 
   function toggleSign() {
-    if (current === "Error" || current === "0") return;
+    if (isError(current) || current === "0") return;
     current = current.startsWith("-") ? current.slice(1) : "-" + current;
+    announcement = spokenValue(current);
   }
 
   document.querySelector(".keys").addEventListener("click", e => {
@@ -226,13 +257,17 @@
 
   document.addEventListener("keydown", e => {
     const k = e.key;
+    // Let Enter/Space activate the focused key instead of running "="
+    if ((k === "Enter" || k === " ") && e.target.closest("button")) return;
     if (/^[0-9]$/.test(k)) inputDigit(k);
     else if (k === ".") inputDot();
     else if (k in SYMBOLS) setOperator(k);
-    else if (k === "Enter" || k === "=") { e.preventDefault(); equals(); }
+    else if (k === "Enter" || k === "=") equals();
     else if (k === "Backspace") backspace();
     else if (k === "Escape") clear();
     else return;
+    // Handled keys belong to the calculator (e.g. stops "/" opening Firefox Quick Find)
+    e.preventDefault();
     render();
   });
 
