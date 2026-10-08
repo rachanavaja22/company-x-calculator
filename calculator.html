@@ -222,7 +222,9 @@
     const p = preview();
     valueEl.classList.toggle("preview", p !== null);
     // An invalid chain (e.g. ÷ 0) previews as blank; the error itself appears on "="
-    valueEl.textContent = p === null ? current : isFinite(p) ? format(p) : "\u00a0";
+    // A lone number previews exactly as typed ("0.", all 15 digits); results are formatted
+    const lone = operator === null && typing;
+    valueEl.textContent = p === null || lone ? current : isFinite(p) ? format(p) : "\u00a0";
     fitValue();
     if (announcement) { srEl.textContent = announcement; announcement = ""; }
     const entry = typing ? shown(current) : "";
