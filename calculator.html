@@ -6,34 +6,44 @@
 <title>Simple Calculator</title>
 <style>
   :root {
+    color-scheme: light;
     --bg: #f2f3f5;
     --panel: #ffffff;
     --text: #1d1f23;
     --muted: #6b7079;
+    --text-preview: var(--muted);
     --key: #eceef1;
     --key-hover: #e0e3e8;
-    --op: #2563eb;
-    --op-hover: #1d4ed8;
+    --op: #dbe6fd;
+    --op-hover: #cbdafc;
+    --op-text: #1d4ed8;
+    --eq: #2563eb;
+    --eq-hover: #1d4ed8;
+    --eq-text: #ffffff;
     --focus: #2563eb;
-    --op-text: #ffffff;
     --fn: #d9dce2;
+    --fn-hover: #cdd1d8;
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #121316;
-      --panel: #1c1e22;
-      --text: #f1f2f4;
-      --muted: #9097a2;
-      --key: #2a2d33;
-      --key-hover: #353941;
-      --op: #2563eb;
-      --op-hover: #1d4ed8;
-      --focus: #8ab4ff;
-      --op-text: #ffffff;
-      --fn: #3a3e46;
-      --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121316;
+    --panel: #1c1e22;
+    --text: #f1f2f4;
+    --muted: #9097a2;
+    --text-preview: var(--muted);
+    --key: #2a2d33;
+    --key-hover: #353941;
+    --op: #1f2a44;
+    --op-hover: #283656;
+    --op-text: #93b4ff;
+    --eq: #2563eb;
+    --eq-hover: #1d4ed8;
+    --eq-text: #ffffff;
+    --focus: #8ab4ff;
+    --fn: #3a3e46;
+    --fn-hover: #454a53;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
   * { box-sizing: border-box; }
   body {
@@ -46,6 +56,24 @@
     color: var(--text);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   }
+  .app { width: 100%; max-width: 320px; }
+  .theme-bar { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+  /* Quiet text button: no fill until hover, 44px tall hit area */
+  .theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: auto;
+    min-height: 44px;
+    padding: 0 12px;
+    margin-right: -12px;
+    font-size: 13px;
+    border-radius: 22px;
+    background: transparent;
+    color: var(--text);
+  }
+  .theme-toggle .icon path { fill: none; }
+  .theme-toggle[aria-pressed="true"] .icon path { fill: currentColor; }
   .calc {
     width: 100%;
     max-width: 320px;
@@ -65,6 +93,7 @@
     color: var(--muted);
     min-height: 20px;
     white-space: nowrap;
+    overflow: hidden;
   }
   .value {
     font-size: 44px;
@@ -74,6 +103,7 @@
     text-overflow: ellipsis;
     font-variant-numeric: tabular-nums;
   }
+  .value.preview { color: var(--text-preview); }
   .keys {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -94,17 +124,41 @@
   button:active { transform: scale(0.96); }
   button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .fn { background: var(--fn); font-size: 18px; }
+  .fn:hover { background: var(--fn-hover); }
   .op { background: var(--op); color: var(--op-text); }
   .op:hover { background: var(--op-hover); }
   .op.active { outline: 2px solid var(--text); outline-offset: -4px; }
+  .eq { background: var(--eq); color: var(--eq-text); }
+  .eq:hover { background: var(--eq-hover); }
+  /* Math glyphs sit low and small next to digits: enlarge and lift them optically */
+  .op, .eq { font-size: 26px; padding-bottom: 6px; }
+  [data-action="sign"] { padding-bottom: 3px; }
   .zero { grid-column: span 2; }
   .sr-only {
     position: absolute; width: 1px; height: 1px; overflow: hidden;
     clip: rect(0 0 0 0); white-space: nowrap;
   }
 </style>
+<script>
+  // Saved choice wins; otherwise follow the system. Runs before paint to avoid a flash.
+  (function () {
+    let saved = null;
+    try { saved = localStorage.getItem("theme"); } catch (e) {}
+    const system = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = saved === "dark" || saved === "light" ? saved : system;
+  })();
+</script>
 </head>
 <body>
+  <div class="app">
+  <div class="theme-bar">
+    <button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false">
+      <svg class="icon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+      </svg>
+      Dark mode
+    </button>
+  </div>
   <main class="calc" aria-label="Calculator">
     <div class="display">
       <div class="expr" id="expr"></div>
@@ -134,9 +188,10 @@
 
       <button class="zero" data-digit="0">0</button>
       <button data-action="dot" aria-label="Decimal point">.</button>
-      <button class="op" data-action="equals" aria-label="Equals">=</button>
+      <button class="eq" data-action="equals" aria-label="Equals">=</button>
     </div>
   </main>
+  </div>
 
 <script>
   const SYMBOLS = { "+": "+", "-": "−", "*": "×", "/": "÷" };
@@ -144,11 +199,18 @@
   const valueEl = document.getElementById("value");
   const exprEl = document.getElementById("expr");
   const srEl = document.getElementById("sr");
+  const clearBtn = document.querySelector('[data-action="clear"]');
 
-  let current = "0";      // number being typed (string)
-  let stored = null;      // left operand (number)
+  let current = "0";      // number being typed, or the last result (string)
+  let typing = false;     // the user has started typing the current number
+  let stored = null;      // running value of the chain before the current number
   let operator = null;    // pending operator
-  let fresh = false;      // next digit starts a new number
+  let chain = "";         // expression text before the pending operator, e.g. "7 + 2"
+  let spokenChain = "";   // the same chain in words for the status region, e.g. "2 plus 3,"
+  let hasLowOp = false;   // chain has a + or − outside brackets, so × ÷ must bracket it
+  let chainError = null;  // first error hit while chaining (e.g. ÷ 0), only shown on "="
+  let evaluated = null;   // finished expression shown after "=", e.g. "(2 + 3) × 4 ="
+  let entryDirty = false; // there is an entry for C to clear; otherwise the key is AC
   let announcement = "";  // text for the screen-reader status region
 
   function compute(a, b, op) {
@@ -160,13 +222,15 @@
     }
   }
 
-  // Short enough to fit the 44px display; screen readers get the full wording
-  const DIV_ZERO = "Can't ÷ by 0";
+  // The big line shrinks to fit (see fitValue), so the full message can be shown
+  const DIV_ZERO = "Can't divide by 0";
   const TOO_LARGE = "Too large";
   const SPOKEN_ERRORS = { [DIV_ZERO]: "Cannot divide by zero", [TOO_LARGE]: "Number too large" };
   const isError = s => s in SPOKEN_ERRORS;
   // Spell out the sign so "-12" is read as "minus 12" rather than "dash 12"
   const spokenValue = s => s.startsWith("-") ? `minus ${s.slice(1)}` : s;
+  // Typographic minus for negative numbers in the expression line
+  const shown = s => s.replace(/^-/, "−");
 
   function format(n) {
     if (Number.isNaN(n)) return DIV_ZERO;   // compute() returns NaN only for ÷ 0
@@ -176,12 +240,38 @@
     return Math.abs(r) >= 1e12 ? r.toExponential(6) : String(r);
   }
 
+  // Running value of everything entered so far, or null when there is nothing to preview
+  function preview() {
+    if (operator === null) return typing ? parseFloat(current) : null;
+    return typing ? compute(stored, parseFloat(current), operator) : stored;
+  }
+
+  // Shrink the big line from 44px (down to 24px) until its text fits instead of cutting it off
+  function fitValue() {
+    let size = 44;
+    valueEl.style.fontSize = "";
+    while (valueEl.scrollWidth > valueEl.clientWidth && size > 24) {
+      valueEl.style.fontSize = (size -= 2) + "px";
+    }
+  }
+
   function render() {
-    valueEl.textContent = current;
+    const p = preview();
+    valueEl.classList.toggle("preview", p !== null);
+    // An invalid chain (e.g. ÷ 0) previews as blank; the error itself appears on "="
+    // A lone number previews exactly as typed ("0.", all 15 digits); results are formatted
+    const lone = operator === null && typing;
+    valueEl.textContent = p === null || lone ? current : isFinite(p) ? format(p) : "\u00a0";
+    fitValue();
     if (announcement) { srEl.textContent = announcement; announcement = ""; }
-    exprEl.textContent = operator !== null ? `${format(stored)} ${SYMBOLS[operator]}` : "";
+    const entry = typing ? shown(current) : "";
+    exprEl.textContent = evaluated ??
+      [operator !== null ? `${chain} ${SYMBOLS[operator]}` : "", entry].filter(Boolean).join(" ");
+    exprEl.scrollLeft = exprEl.scrollWidth;   // keep the latest input in view
+    clearBtn.textContent = entryDirty ? "C" : "AC";
+    clearBtn.setAttribute("aria-label", entryDirty ? "C, clear entry" : "AC, all clear");
     document.querySelectorAll("[data-op]").forEach(b => {
-      const pending = b.dataset.op === operator && fresh;
+      const pending = b.dataset.op === operator && !typing;
       b.classList.toggle("active", pending);
       b.setAttribute("aria-pressed", String(pending));
     });
@@ -189,52 +279,91 @@
 
   function inputDigit(d) {
     if (isError(current)) clear();
-    if (fresh) { current = d; fresh = false; }
+    else if (evaluated !== null) reset();   // a digit after "=" starts a new calculation
+    if (!typing) { current = d; typing = true; }
     else current = current === "0" ? d : current + d;
     if (current.replace(/[-.]/g, "").length > 15) current = current.slice(0, -1);
+    entryDirty = true;
   }
 
   function inputDot() {
     if (isError(current)) clear();
-    if (fresh) { current = "0."; fresh = false; return; }
-    if (!current.includes(".")) current += ".";
+    else if (evaluated !== null) reset();
+    if (!typing) current = "0.";
+    else if (!current.includes(".")) current += ".";
+    typing = true;
+    entryDirty = true;
   }
 
   function setOperator(op) {
     if (isError(current)) return;
-    const n = parseFloat(current);
-    if (operator !== null && !fresh) {
-      const result = compute(stored, n, operator);
-      current = format(result);
-      if (isError(current)) { stored = null; operator = null; fresh = true; announcement = SPOKEN_ERRORS[current]; return; }
+    if (operator === null) {            // start a chain from the current number (or last result)
+      chain = shown(current);
+      spokenChain = spokenValue(current);
       stored = parseFloat(current);
-    } else if (operator === null || !fresh) {
-      stored = n;
+      hasLowOp = false;
+      chainError = null;
+    } else if (typing) {                // fold the number just typed into the chain
+      chain += ` ${SYMBOLS[operator]} ${shown(current)}`;
+      spokenChain += ` ${WORDS[operator]} ${spokenValue(current)}`;
+      if (operator === "+" || operator === "-") hasLowOp = true;
+      stored = compute(stored, parseFloat(current), operator);
+      if (!isFinite(stored) && chainError === null) chainError = format(stored);
+    }                                   // otherwise just swap the pending operator
+    // Left-to-right evaluation: show it by bracketing the + / − part before × ÷
+    if ((op === "*" || op === "/") && hasLowOp) {
+      chain = `(${chain})`;
+      spokenChain += ",";   // a pause stands in for the bracket when read aloud
+      hasLowOp = false;
     }
     operator = op;
-    fresh = true;
-    announcement = `${format(stored)} ${WORDS[op]}`;
+    typing = false;
+    entryDirty = true;
+    evaluated = null;   // an operator after "=" continues from the result
+    announcement = isFinite(stored) ? `${format(stored)} ${WORDS[op]}` : WORDS[op];
   }
 
   function equals() {
-    if (operator === null || isError(current)) return;
+    if (operator === null || !typing) return;   // nothing to finish yet
     const result = compute(stored, parseFloat(current), operator);
-    const spoken = `${format(stored)} ${WORDS[operator]} ${current}`;
-    exprEl.textContent = "";
-    current = format(result);
-    announcement = isError(current) ? SPOKEN_ERRORS[current] : `${spoken} equals ${current}`;
+    evaluated = `${chain} ${SYMBOLS[operator]} ${shown(current)} =`;
+    // Announce the whole calculation once, on "=" (preview updates stay silent)
+    const spoken = `${spokenChain} ${WORDS[operator]} ${spokenValue(current)}`;
+    current = chainError ?? format(result);
+    announcement = isError(current) ? SPOKEN_ERRORS[current] : `${spoken} equals ${spokenValue(current)}`;
     stored = null;
     operator = null;
-    fresh = true;
+    typing = false;
+    chain = "";
+    spokenChain = "";
+    hasLowOp = false;
+    chainError = null;
+    entryDirty = false;
+  }
+
+  function reset() {
+    current = "0"; typing = false; stored = null; operator = null;
+    chain = ""; spokenChain = ""; hasLowOp = false; chainError = null; evaluated = null;
+    entryDirty = false;
   }
 
   function clear() {
-    current = "0"; stored = null; operator = null; fresh = false;
+    reset();
     announcement = "Cleared";
   }
 
+  // C: clear only the number being entered, keeping the chain and pending operator
+  function clearEntry() {
+    current = "0";
+    typing = false;
+    entryDirty = false;
+    announcement = "Entry cleared";
+  }
+
+  const clearKey = () => entryDirty ? clearEntry() : clear();
+
   function backspace() {
-    if (fresh || isError(current)) return;
+    if (!typing || isError(current)) return;
     current = current.length > 1 && current !== "-0" ? current.slice(0, -1) : "0";
     if (current === "-") current = "0";
     announcement = spokenValue(current);
@@ -242,7 +371,10 @@
 
   function toggleSign() {
     if (isError(current) || current === "0") return;
+    if (operator !== null && !typing) return;   // no number entered after the operator yet
     current = current.startsWith("-") ? current.slice(1) : "-" + current;
+    evaluated = null;   // a negated result no longer matches the finished expression
+    entryDirty = true;
     announcement = spokenValue(current);
   }
 
@@ -251,7 +383,7 @@
     if (!b) return;
     if (b.dataset.digit) inputDigit(b.dataset.digit);
     else if (b.dataset.op) setOperator(b.dataset.op);
-    else ({ clear, sign: toggleSign, back: backspace, dot: inputDot, equals })[b.dataset.action]();
+    else ({ clear: clearKey, sign: toggleSign, back: backspace, dot: inputDot, equals })[b.dataset.action]();
     render();
   });
 
@@ -272,6 +404,28 @@
   });
 
   render();
+
+  // ---- Light / dark toggle ----
+  const themeBtn = document.getElementById("theme-toggle");
+  const systemDark = matchMedia("(prefers-color-scheme: dark)");
+  const savedTheme = () => {
+    try { const t = localStorage.getItem("theme"); return t === "dark" || t === "light" ? t : null; }
+    catch (e) { return null; }
+  };
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    themeBtn.setAttribute("aria-pressed", String(theme === "dark"));
+  }
+  applyTheme(document.documentElement.dataset.theme);
+  themeBtn.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    try { localStorage.setItem("theme", next); } catch (e) {}
+  });
+  // Until the user picks a theme, keep following live system changes
+  systemDark.addEventListener("change", e => {
+    if (!savedTheme()) applyTheme(e.matches ? "dark" : "light");
+  });
 </script>
 </body>
 </html>
