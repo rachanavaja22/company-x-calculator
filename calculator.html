@@ -96,14 +96,19 @@
   .op:hover { background: var(--op-hover); }
   .op.active { outline: 2px solid var(--text); outline-offset: -4px; }
   .zero { grid-column: span 2; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
 </style>
 </head>
 <body>
   <main class="calc" aria-label="Calculator">
     <div class="display">
       <div class="expr" id="expr"></div>
-      <div class="value" id="value" aria-live="polite">0</div>
+      <div class="value" id="value">0</div>
     </div>
+    <div class="sr-only" id="sr" role="status" aria-live="polite" aria-atomic="true"></div>
     <div class="keys">
       <button class="fn" data-action="clear">AC</button>
       <button class="fn" data-action="sign">±</button>
@@ -133,13 +138,16 @@
 
 <script>
   const SYMBOLS = { "+": "+", "-": "−", "*": "×", "/": "÷" };
+  const WORDS = { "+": "plus", "-": "minus", "*": "times", "/": "divided by" };
   const valueEl = document.getElementById("value");
   const exprEl = document.getElementById("expr");
+  const srEl = document.getElementById("sr");
 
   let current = "0";      // number being typed (string)
   let stored = null;      // left operand (number)
   let operator = null;    // pending operator
   let fresh = false;      // next digit starts a new number
+  let announcement = "";  // text for the screen-reader status region
 
   function compute(a, b, op) {
     switch (op) {
@@ -159,6 +167,7 @@
 
   function render() {
     valueEl.textContent = current;
+    srEl.textContent = announcement;
     exprEl.textContent = operator !== null ? `${format(stored)} ${SYMBOLS[operator]}` : "";
     document.querySelectorAll("[data-op]").forEach(b => {
       const pending = b.dataset.op === operator && fresh;
@@ -172,12 +181,14 @@
     if (fresh) { current = d; fresh = false; }
     else current = current === "0" ? d : current + d;
     if (current.replace(/[-.]/g, "").length > 15) current = current.slice(0, -1);
+    announcement = current;
   }
 
   function inputDot() {
     if (current === "Error") clear();
-    if (fresh) { current = "0."; fresh = false; return; }
+    if (fresh) { current = "0."; fresh = false; announcement = current; return; }
     if (!current.includes(".")) current += ".";
+    announcement = current;
   }
 
   function setOperator(op) {
@@ -186,20 +197,23 @@
     if (operator !== null && !fresh) {
       const result = compute(stored, n, operator);
       current = format(result);
-      if (current === "Error") { stored = null; operator = null; fresh = true; return; }
+      if (current === "Error") { stored = null; operator = null; fresh = true; announcement = current; return; }
       stored = parseFloat(current);
     } else if (operator === null || !fresh) {
       stored = n;
     }
     operator = op;
     fresh = true;
+    announcement = `${format(stored)} ${WORDS[op]}`;
   }
 
   function equals() {
     if (operator === null || current === "Error") return;
     const result = compute(stored, parseFloat(current), operator);
+    const spoken = `${format(stored)} ${WORDS[operator]} ${current}`;
     exprEl.textContent = "";
     current = format(result);
+    announcement = current === "Error" ? current : `${spoken} equals ${current}`;
     stored = null;
     operator = null;
     fresh = true;
@@ -207,17 +221,20 @@
 
   function clear() {
     current = "0"; stored = null; operator = null; fresh = false;
+    announcement = "Cleared";
   }
 
   function backspace() {
     if (fresh || current === "Error") return;
     current = current.length > 1 && current !== "-0" ? current.slice(0, -1) : "0";
     if (current === "-") current = "0";
+    announcement = current;
   }
 
   function toggleSign() {
     if (current === "Error" || current === "0") return;
     current = current.startsWith("-") ? current.slice(1) : "-" + current;
+    announcement = current;
   }
 
   document.querySelector(".keys").addEventListener("click", e => {
