@@ -185,8 +185,8 @@
     }
   }
 
-  // Short enough to fit the 44px display; screen readers get the full wording
-  const DIV_ZERO = "Can't ÷ by 0";
+  // The big line shrinks to fit (see fitValue), so the full message can be shown
+  const DIV_ZERO = "Can't divide by 0";
   const TOO_LARGE = "Too large";
   const SPOKEN_ERRORS = { [DIV_ZERO]: "Cannot divide by zero", [TOO_LARGE]: "Number too large" };
   const isError = s => s in SPOKEN_ERRORS;
