@@ -226,6 +226,8 @@
 
   document.addEventListener("keydown", e => {
     const k = e.key;
+    // Let Enter/Space activate the focused key instead of running "="
+    if ((k === "Enter" || k === " ") && e.target.closest("button")) return;
     if (/^[0-9]$/.test(k)) inputDigit(k);
     else if (k === ".") inputDot();
     else if (k in SYMBOLS) setOperator(k);
