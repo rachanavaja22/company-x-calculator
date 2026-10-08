@@ -151,6 +151,7 @@
   let stored = null;      // running value of the chain before the current number
   let operator = null;    // pending operator
   let chain = "";         // expression text before the pending operator, e.g. "7 + 2"
+  let hasLowOp = false;   // chain has a + or − outside brackets, so × ÷ must bracket it
   let announcement = "";  // text for the screen-reader status region
 
   function compute(a, b, op) {
@@ -211,6 +212,7 @@
     if (operator === null) {            // start a chain from the current number (or last result)
       chain = shown(current);
       stored = parseFloat(current);
+      hasLowOp = false;
     } else if (typing) {                // fold the number just typed into the chain
       const result = compute(stored, parseFloat(current), operator);
       if (!isFinite(result)) {
@@ -219,8 +221,14 @@
         return;
       }
       chain += ` ${SYMBOLS[operator]} ${shown(current)}`;
+      if (operator === "+" || operator === "-") hasLowOp = true;
       stored = result;
     }                                   // otherwise just swap the pending operator
+    // Left-to-right evaluation: show it by bracketing the + / − part before × ÷
+    if ((op === "*" || op === "/") && hasLowOp) {
+      chain = `(${chain})`;
+      hasLowOp = false;
+    }
     operator = op;
     typing = false;
     announcement = `${format(stored)} ${WORDS[op]}`;
@@ -236,10 +244,11 @@
     operator = null;
     typing = false;
     chain = "";
+    hasLowOp = false;
   }
 
   function clear() {
-    current = "0"; typing = false; stored = null; operator = null; chain = "";
+    current = "0"; typing = false; stored = null; operator = null; chain = ""; hasLowOp = false;
     announcement = "Cleared";
   }
 
