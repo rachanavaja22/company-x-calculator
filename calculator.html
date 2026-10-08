@@ -156,6 +156,7 @@
   let chain = "";         // expression text before the pending operator, e.g. "7 + 2"
   let hasLowOp = false;   // chain has a + or − outside brackets, so × ÷ must bracket it
   let chainError = null;  // first error hit while chaining (e.g. ÷ 0), only shown on "="
+  let evaluated = null;   // finished expression shown after "=", e.g. "(2 + 3) × 4 ="
   let announcement = "";  // text for the screen-reader status region
 
   function compute(a, b, op) {
@@ -198,7 +199,8 @@
     valueEl.textContent = p === null ? current : isFinite(p) ? format(p) : "\u00a0";
     if (announcement) { srEl.textContent = announcement; announcement = ""; }
     const entry = typing ? shown(current) : "";
-    exprEl.textContent = [operator !== null ? `${chain} ${SYMBOLS[operator]}` : "", entry].filter(Boolean).join(" ");
+    exprEl.textContent = evaluated ??
+      [operator !== null ? `${chain} ${SYMBOLS[operator]}` : "", entry].filter(Boolean).join(" ");
     exprEl.scrollLeft = exprEl.scrollWidth;   // keep the latest input in view
     document.querySelectorAll("[data-op]").forEach(b => {
       const pending = b.dataset.op === operator && !typing;
@@ -209,6 +211,7 @@
 
   function inputDigit(d) {
     if (isError(current)) clear();
+    else if (evaluated !== null) reset();   // a digit after "=" starts a new calculation
     if (!typing) { current = d; typing = true; }
     else current = current === "0" ? d : current + d;
     if (current.replace(/[-.]/g, "").length > 15) current = current.slice(0, -1);
@@ -216,6 +219,7 @@
 
   function inputDot() {
     if (isError(current)) clear();
+    else if (evaluated !== null) reset();
     if (!typing) { current = "0."; typing = true; return; }
     if (!current.includes(".")) current += ".";
   }
@@ -240,12 +244,14 @@
     }
     operator = op;
     typing = false;
+    evaluated = null;   // an operator after "=" continues from the result
     announcement = isFinite(stored) ? `${format(stored)} ${WORDS[op]}` : WORDS[op];
   }
 
   function equals() {
-    if (operator === null || isError(current)) return;
+    if (operator === null || !typing) return;   // nothing to finish yet
     const result = compute(stored, parseFloat(current), operator);
+    evaluated = `${chain} ${SYMBOLS[operator]} ${shown(current)} =`;
     const spoken = `${format(stored)} ${WORDS[operator]} ${current}`;
     current = chainError ?? format(result);
     announcement = isError(current) ? SPOKEN_ERRORS[current] : `${spoken} equals ${current}`;
@@ -257,8 +263,13 @@
     chainError = null;
   }
 
+  function reset() {
+    current = "0"; typing = false; stored = null; operator = null;
+    chain = ""; hasLowOp = false; chainError = null; evaluated = null;
+  }
+
   function clear() {
-    current = "0"; typing = false; stored = null; operator = null; chain = ""; hasLowOp = false; chainError = null;
+    reset();
     announcement = "Cleared";
   }
 
@@ -271,7 +282,9 @@
 
   function toggleSign() {
     if (isError(current) || current === "0") return;
+    if (operator !== null && !typing) return;   // no number entered after the operator yet
     current = current.startsWith("-") ? current.slice(1) : "-" + current;
+    evaluated = null;   // a negated result no longer matches the finished expression
     announcement = spokenValue(current);
   }
 
